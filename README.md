@@ -12,6 +12,3 @@ bantuan AI** untuk percepatan pengembangan.
 - `SQLite`
 - `Microsoft.Data.Sqlite`
 - `MySQL`
-  ```
-
-  ```
