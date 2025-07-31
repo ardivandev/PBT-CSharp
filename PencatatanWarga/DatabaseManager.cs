@@ -1,13 +1,14 @@
 using System;
 using System.IO;
 using System.Data;
+using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
 
 namespace AplikasiPencatatanWarga
 {
     public class DatabaseManager
     {
-        private string dbPath;
+        private readonly string dbPath;
 
         public DatabaseManager()
         {
@@ -20,11 +21,10 @@ namespace AplikasiPencatatanWarga
             }
 
             dbPath = Path.Combine(dataFolder, "warga.db");
-
             InitializeDatabase();
         }
 
-        public SqliteConnection GetConnection()
+        private SqliteConnection GetConnection()
         {
             return new SqliteConnection($"Data Source={dbPath}");
         }
@@ -33,132 +33,134 @@ namespace AplikasiPencatatanWarga
         {
             using (var connection = GetConnection())
             {
-                try
+                connection.Open();
+                string createTableQuery = @"
+                    CREATE TABLE IF NOT EXISTS Warga (
+                        nik TEXT PRIMARY KEY UNIQUE NOT NULL,
+                        namalengkap TEXT NOT NULL,
+                        tanggallahir TEXT,
+                        jeniskelamin TEXT NOT NULL,
+                        alamat TEXT,
+                        pekerjaan TEXT,
+                        statusperkawinan TEXT
+                    );
+
+                    CREATE INDEX IF NOT EXISTS idx_warga_nik ON Warga(nik);
+                    CREATE INDEX IF NOT EXISTS idx_warga_nama ON Warga(namalengkap);";
+
+                using (var command = new SqliteCommand(createTableQuery, connection))
                 {
-                    connection.Open();
-                    string createTableQuery = @"
-                        CREATE TABLE IF NOT EXISTS Warga (
-                            nik TEXT PRIMARY KEY UNIQUE NOT NULL,
-                            namalengkap TEXT NOT NULL,
-                            tanggallahir TEXT,
-                            jeniskelamin TEXT NOT NULL,
-                            alamat TEXT,
-                            pekerjaan TEXT,
-                            statusperkawinan TEXT
-                        );";
-                    using (var command = new SqliteCommand(createTableQuery, connection))
-                    {
-                        command.ExecuteNonQuery();
-                    }
-                    Console.WriteLine("Database berhasil diinisialisasi dan tabel 'Warga' siap digunakan.");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error saat inisialisasi database: {ex.Message}");
+                    command.ExecuteNonQuery();
                 }
             }
         }
 
-        public bool SaveWarga(string nik, string namaLengkap, DateTime tanggalLahir, string jenisKelamin,
-                              string alamat, string pekerjaan, string statusPerkawinan)
+        public async Task<bool> SaveWargaAsync(string nik, string namaLengkap, DateTime tanggalLahir,
+                                              string jenisKelamin, string alamat, string pekerjaan,
+                                              string statusPerkawinan)
         {
             using (var conn = GetConnection())
             {
                 try
                 {
-                    conn.Open();
-                    string query = @"
-                        INSERT INTO Warga (nik, namalengkap, tanggallahir, jeniskelamin, alamat, pekerjaan, statusperkawinan)
-                        VALUES (@nik, @namalengkap, @tanggallahir, @jeniskelamin, @alamat, @pekerjaan, @statusperkawinan)
-                        ON CONFLICT(nik) DO UPDATE SET
-                            namalengkap = excluded.namalengkap,
-                            tanggallahir = excluded.tanggallahir,
-                            jeniskelamin = excluded.jeniskelamin,
-                            alamat = excluded.alamat,
-                            pekerjaan = excluded.pekerjaan,
-                            statusperkawinan = excluded.statusperkawinan;
-                    ";
-
-                    using (var cmd = new SqliteCommand(query, conn))
+                    await conn.OpenAsync();
+                    using (var transaction = await conn.BeginTransactionAsync())
                     {
-                        cmd.Parameters.AddWithValue("@nik", nik);
-                        cmd.Parameters.AddWithValue("@namalengkap", namaLengkap);
-                        cmd.Parameters.AddWithValue("@tanggallahir", tanggalLahir.ToString("yyyy-MM-dd"));
-                        cmd.Parameters.AddWithValue("@jeniskelamin", jenisKelamin);
-                        cmd.Parameters.AddWithValue("@alamat", alamat);
-                        cmd.Parameters.AddWithValue("@pekerjaan", pekerjaan);
-                        cmd.Parameters.AddWithValue("@statusperkawinan", statusPerkawinan);
-                        cmd.ExecuteNonQuery();
+                        string query = @"
+                            INSERT INTO Warga
+                            VALUES (@nik, @namalengkap, @tanggallahir, @jeniskelamin, @alamat, @pekerjaan, @statusperkawinan)
+                            ON CONFLICT(nik) DO UPDATE SET
+                                namalengkap = excluded.namalengkap,
+                                tanggallahir = excluded.tanggallahir,
+                                jeniskelamin = excluded.jeniskelamin,
+                                alamat = excluded.alamat,
+                                pekerjaan = excluded.pekerjaan,
+                                statusperkawinan = excluded.statusperkawinan;
+                        ";
+
+                        using (var cmd = new SqliteCommand(query, conn, transaction))
+                        {
+                            cmd.Parameters.AddWithValue("@nik", nik);
+                            cmd.Parameters.AddWithValue("@namalengkap", namaLengkap);
+                            cmd.Parameters.AddWithValue("@tanggallahir", tanggalLahir.ToString("yyyy-MM-dd"));
+                            cmd.Parameters.AddWithValue("@jeniskelamin", jenisKelamin);
+                            cmd.Parameters.AddWithValue("@alamat", alamat);
+                            cmd.Parameters.AddWithValue("@pekerjaan", pekerjaan);
+                            cmd.Parameters.AddWithValue("@statusperkawinan", statusPerkawinan);
+
+                            await cmd.ExecuteNonQueryAsync();
+                        }
+                        await transaction.CommitAsync();
+                        return true;
                     }
-                    return true;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error saat menyimpan data warga: {ex.Message}");
+                    Console.WriteLine($"Error saving data: {ex.Message}");
                     return false;
                 }
             }
         }
 
-        public DataTable GetAllWarga()
+        public async Task<DataTable> GetAllWargaAsync()
         {
             var dt = new DataTable();
             using (var conn = GetConnection())
             {
                 try
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     string query = "SELECT * FROM Warga ORDER BY namalengkap ASC;";
                     using (var cmd = new SqliteCommand(query, conn))
-                    using (var reader = cmd.ExecuteReader())
+                    using (var reader = await cmd.ExecuteReaderAsync())
                     {
-                        dt.Load(reader); // Load langsung dari reader
+                        dt.Load(reader);
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error saat mengambil data warga: {ex.Message}");
+                    Console.WriteLine($"Error getting data: {ex.Message}");
                 }
             }
             return dt;
         }
 
-        public bool DeleteWarga(string nik)
+        public async Task<bool> DeleteWargaAsync(string nik)
         {
             using (var conn = GetConnection())
             {
                 try
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     string query = "DELETE FROM Warga WHERE nik = @nik;";
                     using (var cmd = new SqliteCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@nik", nik);
-                        int affected = cmd.ExecuteNonQuery();
+                        int affected = await cmd.ExecuteNonQueryAsync();
                         return affected > 0;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error saat menghapus data warga: {ex.Message}");
+                    Console.WriteLine($"Error deleting data: {ex.Message}");
                     return false;
                 }
             }
         }
 
-        public DataRow? GetWargaByNIK(string nik)
+        public async Task<DataRow?> GetWargaByNIKAsync(string nik)
         {
             var dt = new DataTable();
             using (var conn = GetConnection())
             {
                 try
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                     string query = "SELECT * FROM Warga WHERE nik = @nik;";
                     using (var cmd = new SqliteCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@nik", nik);
-                        using (var reader = cmd.ExecuteReader())
+                        using (var reader = await cmd.ExecuteReaderAsync())
                         {
                             dt.Load(reader);
                         }
@@ -166,7 +168,7 @@ namespace AplikasiPencatatanWarga
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error saat mengambil data berdasarkan NIK: {ex.Message}");
+                    Console.WriteLine($"Error getting data by NIK: {ex.Message}");
                 }
             }
             return dt.Rows.Count > 0 ? dt.Rows[0] : null;
