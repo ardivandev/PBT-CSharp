@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PencatatanWarga")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0375610adfbad6df2d6663786acf32f171344d98")]
 [assembly: System.Reflection.AssemblyProductAttribute("PencatatanWarga")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PencatatanWarga")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

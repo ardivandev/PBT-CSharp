@@ -46,3 +46,4 @@
 /home/ardivan/Documents/PBT - C#/PencatatanWarga/obj/Debug/net9.0/PencatatanWarga.pdb
 /home/ardivan/Documents/PBT - C#/PencatatanWarga/obj/Debug/net9.0/PencatatanWarga.genruntimeconfig.cache
 /home/ardivan/Documents/PBT - C#/PencatatanWarga/obj/Debug/net9.0/ref/PencatatanWarga.dll
+/home/ardivan/Documents/PBT - C#/PencatatanWarga/obj/Debug/net9.0/PencatatanWarga.sourcelink.json

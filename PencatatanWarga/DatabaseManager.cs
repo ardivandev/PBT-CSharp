@@ -78,7 +78,7 @@ namespace AplikasiPencatatanWarga
                                 statusperkawinan = excluded.statusperkawinan;
                         ";
 
-                        using (var cmd = new SqliteCommand(query, conn, transaction))
+                        using (var cmd = new SqliteCommand(query, conn, (SqliteTransaction)transaction))
                         {
                             cmd.Parameters.AddWithValue("@nik", nik);
                             cmd.Parameters.AddWithValue("@namalengkap", namaLengkap);

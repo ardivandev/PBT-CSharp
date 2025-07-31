@@ -14,7 +14,7 @@ namespace AplikasiPencatatanWarga
 
         public MainWindow() : base("Aplikasi Pencatatan Warga")
         {
-            // Window initialization
+            // Window configuration
             SetDefaultSize(800, 400);
             SetPosition(WindowPosition.Center);
             DeleteEvent += (o, args) => Application.Quit();
@@ -36,7 +36,7 @@ namespace AplikasiPencatatanWarga
             btnTambah.Clicked += OnTambahClicked;
             vbox.PackStart(btnTambah, false, false, 0);
 
-            // TreeView
+            // TreeView setup
             treeView = new TreeView { Expand = true };
             SetupTreeViewColumns();
             vbox.PackStart(new ScrolledWindow { Child = treeView }, true, true, 0);
@@ -58,19 +58,23 @@ namespace AplikasiPencatatanWarga
 
             // Action column
             var actionCol = new TreeViewColumn { Title = "Aksi" };
-            var actionRenderer = new CellRendererText { Foreground = "blue" };
+            var actionRenderer = new CellRendererText
+            {
+                Foreground = "blue",
+                Editable = true
+            };
 
             actionCol.PackStart(actionRenderer, true);
-            actionCol.SetCellDataFunc(actionRenderer, (TreeCellDataFunc)((col, cell, model, iter) =>
+            actionCol.SetCellDataFunc(actionRenderer, new TreeCellDataFunc((col, cell, model, iter) =>
             {
                 ((CellRendererText)cell).Text = "Edit | Hapus";
-            });
+            }));
 
             actionRenderer.Edited += OnActionEdited;
             treeView.AppendColumn(actionCol);
         }
 
-        private async void OnActionEdited(object? sender, EditedArgs args)
+        private async void OnActionEdited(object o, EditedArgs args)
         {
             if (listStore.GetIterFromString(out var iter, args.Path))
             {
@@ -95,184 +99,265 @@ namespace AplikasiPencatatanWarga
                 DialogFlags.Modal,
                 MessageType.Question,
                 ButtonsType.YesNo,
-                "Apakah Anda yakin ingin menghapus data ini?"
+                $"Apakah Anda yakin ingin menghapus data warga dengan NIK {nik}?"
             );
 
-            if (confirm.Run() == (int)ResponseType.Yes && await db.DeleteWargaAsync(nik))
+            if (confirm.Run() == (int)ResponseType.Yes)
             {
-                ShowMessage("Data berhasil dihapus", MessageType.Info);
-                await RefreshDataAsync();
+                bool success = await db.DeleteWargaAsync(nik);
+                if (success)
+                {
+                    ShowMessage("Data berhasil dihapus", MessageType.Info);
+                    await RefreshDataAsync();
+                }
+                else
+                {
+                    ShowMessage("Gagal menghapus data", MessageType.Error);
+                }
             }
             confirm.Destroy();
         }
-
         private async Task EditWargaAsync(string nik)
+{
+    var row = await db.GetWargaByNIKAsync(nik);
+    if (row == null) return;
+
+    var dialog = new Dialog("Edit Warga", this, DialogFlags.Modal)
+    {
+        DefaultWidth = 350,
+        DefaultHeight = 400,
+        BorderWidth = 10
+    };
+
+    var form = new Box(Orientation.Vertical, 5) { Margin = 10 };
+    dialog.ContentArea.PackStart(form, true, true, 0);
+
+    // NIK Field (non-editable)
+    form.PackStart(new Label("NIK:"), false, false, 0);
+    var nikEntry = new Entry(row["nik"]?.ToString() ?? "")
+    {
+        IsEditable = false,
+        WidthRequest = 300
+    };
+    form.PackStart(nikEntry, false, false, 0);
+
+    // Nama Lengkap
+    form.PackStart(new Label("Nama Lengkap:"), false, false, 0);
+    var namaEntry = new Entry(row["namalengkap"]?.ToString() ?? "")
+    {
+        PlaceholderText = "Nama Lengkap",
+        WidthRequest = 300
+    };
+    form.PackStart(namaEntry, false, false, 0);
+
+    // Tanggal Lahir
+    form.PackStart(new Label("Tanggal Lahir:"), false, false, 0);
+    var tglEntry = new Entry(row["tanggallahir"]?.ToString() ?? "")
+    {
+        PlaceholderText = "Tanggal Lahir (YYYY-MM-DD)",
+        WidthRequest = 300
+    };
+    form.PackStart(tglEntry, false, false, 0);
+
+    // Jenis Kelamin ComboBox
+    form.PackStart(new Label("Jenis Kelamin:"), false, false, 0);
+    var jkCombo = new ComboBoxText();
+    jkCombo.AppendText("Laki-laki");
+    jkCombo.AppendText("Perempuan");
+
+    // Set active value from database
+    string currentJK = row["jeniskelamin"]?.ToString() ?? "";
+    if (currentJK == "Laki-laki") jkCombo.Active = 0;
+    else if (currentJK == "Perempuan") jkCombo.Active = 1;
+
+    form.PackStart(jkCombo, false, false, 0);
+
+    // Alamat
+    form.PackStart(new Label("Alamat:"), false, false, 0);
+    var alamatEntry = new Entry(row["alamat"]?.ToString() ?? "")
+    {
+        PlaceholderText = "Alamat",
+        WidthRequest = 300
+    };
+    form.PackStart(alamatEntry, false, false, 0);
+
+    // Pekerjaan
+    form.PackStart(new Label("Pekerjaan:"), false, false, 0);
+    var pekerjaanEntry = new Entry(row["pekerjaan"]?.ToString() ?? "")
+    {
+        PlaceholderText = "Pekerjaan",
+        WidthRequest = 300
+    };
+    form.PackStart(pekerjaanEntry, false, false, 0);
+
+    // Status Perkawinan ComboBox
+    form.PackStart(new Label("Status Perkawinan:"), false, false, 0);
+    var statusCombo = new ComboBoxText();
+    statusCombo.AppendText("Sudah Menikah");
+    statusCombo.AppendText("Belum Menikah");
+    statusCombo.AppendText("Cerai Hidup");
+    statusCombo.AppendText("Cerai Mati");
+
+    // Set active value from database
+    string currentStatus = row["statusperkawinan"]?.ToString() ?? "";
+    statusCombo.Active = currentStatus switch
+    {
+        "Sudah Menikah" => 0,
+        "Belum Menikah" => 1,
+        "Cerai Hidup" => 2,
+        "Cerai Mati" => 3,
+        _ => -1
+    };
+
+    form.PackStart(statusCombo, false, false, 0);
+
+    dialog.AddButton("Batal", ResponseType.Cancel);
+    dialog.AddButton("Simpan", ResponseType.Ok);
+
+    dialog.ShowAll();
+
+    if (dialog.Run() == (int)ResponseType.Ok)
+    {
+        var values = (
+            nik: nikEntry.Text.Trim(),
+            nama: namaEntry.Text.Trim(),
+            tanggalLahir: tglEntry.Text.Trim(),
+            jenisKelamin: jkCombo.ActiveText,
+            alamat: alamatEntry.Text.Trim(),
+            pekerjaan: pekerjaanEntry.Text.Trim(),
+            status: statusCombo.ActiveText
+        );
+
+        if (ValidateWargaData(values, false))
         {
-            var row = await db.GetWargaByNIKAsync(nik);
-            if (row == null) return;
+            var spinner = new Spinner { Active = true };
+            form.PackStart(spinner, false, false, 5);
+            form.ShowAll();
 
-            var dialog = new Dialog("Edit Warga", this, DialogFlags.Modal)
+            bool result = await db.SaveWargaAsync(
+                values.nik, values.nama,
+                DateTime.Parse(values.tanggalLahir),
+                values.jenisKelamin, values.alamat,
+                values.pekerjaan, values.status);
+
+            spinner.Destroy();
+
+            if (result)
             {
-                DefaultWidth = 350,
-                DefaultHeight = 300
-            };
-
-            // Create edit form
-            var form = new Box(Orientation.Vertical, 5) { BorderWidth = 10 };
-            dialog.ContentArea.PackStart(form, true, true, 0);
-
-            var nikEntry = CreateFormField(form, "NIK", row["nik"]?.ToString() ?? "", false);
-            var namaEntry = CreateFormField(form, "Nama Lengkap", row["namalengkap"]?.ToString() ?? "");
-            var tglEntry = CreateFormField(form, "Tanggal Lahir (yyyy-MM-dd)", row["tanggallahir"]?.ToString() ?? "");
-            var jkEntry = CreateFormField(form, "Jenis Kelamin", row["jeniskelamin"]?.ToString() ?? "");
-            var alamatEntry = CreateFormField(form, "Alamat", row["alamat"]?.ToString() ?? "");
-            var pekerjaanEntry = CreateFormField(form, "Pekerjaan", row["pekerjaan"]?.ToString() ?? "");
-            var statusEntry = CreateFormField(form, "Status Perkawinan", row["statusperkawinan"]?.ToString() ?? "");
-
-            dialog.AddButton("Batal", ResponseType.Cancel);
-            dialog.AddButton("Simpan", ResponseType.Ok);
-
-            if (dialog.Run() == (int)ResponseType.Ok)
-            {
-                var values = (
-                    nik: nikEntry.Text.Trim(),
-                    nama: namaEntry.Text.Trim(),
-                    tanggalLahir: tglEntry.Text.Trim(),
-                    jenisKelamin: jkEntry.Text.Trim(),
-                    alamat: alamatEntry.Text.Trim(),
-                    pekerjaan: pekerjaanEntry.Text.Trim(),
-                    status: statusEntry.Text.Trim()
-                );
-
-                if (ValidateWargaData(values, false))
-                {
-                    var spinner = new Spinner { Active = true };
-                    form.PackStart(spinner, false, false, 5);
-                    form.ShowAll();
-
-                    bool result = await db.SaveWargaAsync(
-                        values.nik, values.nama,
-                        DateTime.Parse(values.tanggalLahir),
-                        values.jenisKelamin, values.alamat,
-                        values.pekerjaan, values.status);
-
-                    spinner.Destroy();
-
-                    if (result)
-                    {
-                        ShowMessage("Data berhasil diubah", MessageType.Info);
-                        await RefreshDataAsync();
-                    }
-                    else
-                    {
-                        ShowMessage("Gagal mengubah data", MessageType.Error);
-                    }
-                }
+                ShowMessage("Data berhasil diubah", MessageType.Info);
+                await RefreshDataAsync();
             }
-            dialog.Destroy();
+            else
+            {
+                ShowMessage("Gagal mengubah data", MessageType.Error);
+            }
         }
+    }
+    dialog.Destroy();
+}
 
-        private async void OnTambahClicked(object? sender, EventArgs e)
+        private void OnTambahClicked(object? sender, EventArgs e)
+    {
+      _ = TambahWargaAsync();
+    }
+
+        private async Task TambahWargaAsync()
         {
-            var dialog = new Dialog("Tambah Warga", this, DialogFlags.Modal)
+            try
             {
-                DefaultWidth = 350,
-                DefaultHeight = 400,
-                BorderWidth = 10
-            };
-
-            // Create form
-            var form = new Box(Orientation.Vertical, 5);
-            dialog.ContentArea.PackStart(form, true, true, 0);
-
-            var nikEntry = new Entry { PlaceholderText = "NIK", WidthRequest = 300 };
-            var namaEntry = new Entry { PlaceholderText = "Nama Lengkap", WidthRequest = 300 };
-            var tglEntry = new Entry { PlaceholderText = "Tanggal Lahir (YYYY-MM-DD)", WidthRequest = 300 };
-
-            // ComboBox for Gender
-            var jkCombo = new ComboBoxText();
-            jkCombo.AppendText("Laki-laki");
-            jkCombo.AppendText("Perempuan");
-
-            var alamatEntry = new Entry { PlaceholderText = "Alamat", WidthRequest = 300 };
-            var pekerjaanEntry = new Entry { PlaceholderText = "Pekerjaan", WidthRequest = 300 };
-
-            // ComboBox for Status
-            var statusCombo = new ComboBoxText();
-            statusCombo.AppendText("Sudah Menikah");
-            statusCombo.AppendText("Belum Menikah");
-            statusCombo.AppendText("Cerai Hidup");
-            statusCombo.AppendText("Cerai Mati");
-
-            // Add form fields
-            form.PackStart(new Label("NIK:"), false, false, 0);
-            form.PackStart(nikEntry, false, false, 0);
-            form.PackStart(new Label("Nama Lengkap:"), false, false, 0);
-            form.PackStart(namaEntry, false, false, 0);
-            form.PackStart(new Label("Tanggal Lahir:"), false, false, 0);
-            form.PackStart(tglEntry, false, false, 0);
-            form.PackStart(new Label("Jenis Kelamin:"), false, false, 0);
-            form.PackStart(jkCombo, false, false, 0);
-            form.PackStart(new Label("Alamat:"), false, false, 0);
-            form.PackStart(alamatEntry, false, false, 0);
-            form.PackStart(new Label("Pekerjaan:"), false, false, 0);
-            form.PackStart(pekerjaanEntry, false, false, 0);
-            form.PackStart(new Label("Status Perkawinan:"), false, false, 0);
-            form.PackStart(statusCombo, false, false, 0);
-
-            dialog.AddButton("Batal", ResponseType.Cancel);
-            dialog.AddButton("Simpan", ResponseType.Ok);
-
-            if (dialog.Run() == (int)ResponseType.Ok)
-            {
-                var values = (
-                    nik: nikEntry.Text.Trim(),
-                    nama: namaEntry.Text.Trim(),
-                    tanggalLahir: tglEntry.Text.Trim(),
-                    jenisKelamin: jkCombo.ActiveText,
-                    alamat: alamatEntry.Text.Trim(),
-                    pekerjaan: pekerjaanEntry.Text.Trim(),
-                    status: statusCombo.ActiveText
-                );
-
-                if (ValidateWargaData(values, true))
+                var dialog = new Dialog("Tambah Warga", this, DialogFlags.Modal)
                 {
-                    var spinner = new Spinner { Active = true };
-                    form.PackStart(spinner, false, false, 5);
-                    form.ShowAll();
+                    DefaultWidth = 350,
+                    DefaultHeight = 400,
+                    BorderWidth = 10
+                };
 
-                    bool result = await db.SaveWargaAsync(
-                        values.nik, values.nama,
-                        DateTime.Parse(values.tanggalLahir),
-                        values.jenisKelamin, values.alamat,
-                        values.pekerjaan, values.status);
+                var form = new Box(Orientation.Vertical, 5) { Margin = 10 };
+                dialog.ContentArea.PackStart(form, true, true, 0);
 
-                    spinner.Destroy();
+                // Create form fields
+                var nikEntry = new Entry { PlaceholderText = "NIK", WidthRequest = 300 };
+                var namaEntry = new Entry { PlaceholderText = "Nama Lengkap", WidthRequest = 300 };
+                var tglEntry = new Entry { PlaceholderText = "Tanggal Lahir (YYYY-MM-DD)", WidthRequest = 300 };
 
-                    if (result)
+                var jkCombo = new ComboBoxText();
+                jkCombo.AppendText("Laki-laki");
+                jkCombo.AppendText("Perempuan");
+
+                var alamatEntry = new Entry { PlaceholderText = "Alamat", WidthRequest = 300 };
+                var pekerjaanEntry = new Entry { PlaceholderText = "Pekerjaan", WidthRequest = 300 };
+
+                var statusCombo = new ComboBoxText();
+                statusCombo.AppendText("Sudah Menikah");
+                statusCombo.AppendText("Belum Menikah");
+                statusCombo.AppendText("Cerai Hidup");
+                statusCombo.AppendText("Cerai Mati");
+
+                // Add fields to form
+                form.PackStart(new Label("NIK:"), false, false, 0);
+                form.PackStart(nikEntry, false, false, 0);
+                form.PackStart(new Label("Nama Lengkap:"), false, false, 0);
+                form.PackStart(namaEntry, false, false, 0);
+                form.PackStart(new Label("Tanggal Lahir:"), false, false, 0);
+                form.PackStart(tglEntry, false, false, 0);
+                form.PackStart(new Label("Jenis Kelamin:"), false, false, 0);
+                form.PackStart(jkCombo, false, false, 0);
+                form.PackStart(new Label("Alamat:"), false, false, 0);
+                form.PackStart(alamatEntry, false, false, 0);
+                form.PackStart(new Label("Pekerjaan:"), false, false, 0);
+                form.PackStart(pekerjaanEntry, false, false, 0);
+                form.PackStart(new Label("Status Perkawinan:"), false, false, 0);
+                form.PackStart(statusCombo, false, false, 0);
+
+                dialog.AddButton("Batal", ResponseType.Cancel);
+                dialog.AddButton("Simpan", ResponseType.Ok);
+
+                dialog.ShowAll();
+
+                if (dialog.Run() == (int)ResponseType.Ok)
+                {
+                    var values = (
+                        nik: nikEntry.Text.Trim(),
+                        nama: namaEntry.Text.Trim(),
+                        tanggalLahir: tglEntry.Text.Trim(),
+                        jenisKelamin: jkCombo.ActiveText,
+                        alamat: alamatEntry.Text.Trim(),
+                        pekerjaan: pekerjaanEntry.Text.Trim(),
+                        status: statusCombo.ActiveText
+                    );
+
+                    if (ValidateWargaData(values, true))
                     {
-                        ShowMessage("Data berhasil disimpan", MessageType.Info);
-                        Application.Invoke(delegate
+                        var spinner = new Spinner { Active = true };
+                        form.PackStart(spinner, false, false, 5);
+                        form.ShowAll();
+
+                        bool result = await db.SaveWargaAsync(
+                            values.nik, values.nama,
+                            DateTime.Parse(values.tanggalLahir),
+                            values.jenisKelamin, values.alamat,
+                            values.pekerjaan, values.status);
+
+                        spinner.Destroy();
+
+                        if (result)
                         {
-                            listStore.AppendValues(
-                                values.nik,
-                                values.nama,
-                                values.tanggalLahir,
-                                values.jenisKelamin,
-                                values.alamat,
-                                values.pekerjaan,
-                                values.status,
-                                "Edit | Hapus"
-                            );
-                        });
-                    }
-                    else
-                    {
-                        ShowMessage("Gagal menyimpan data", MessageType.Error);
+                            ShowMessage("Data berhasil disimpan", MessageType.Info);
+                            await RefreshDataAsync();
+                        }
+                        else
+                        {
+                            ShowMessage("Gagal menyimpan data", MessageType.Error);
+                        }
                     }
                 }
+                dialog.Destroy();
             }
-            dialog.Destroy();
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Add error: {ex.Message}");
+                ShowMessage($"Error: {ex.Message}", MessageType.Error);
+            }
         }
 
         private Entry CreateFormField(Box container, string label, string defaultValue, bool editable = true)
@@ -296,7 +381,6 @@ namespace AplikasiPencatatanWarga
             (string nik, string nama, string tanggalLahir, string jenisKelamin,
              string alamat, string pekerjaan, string status) data, bool checkNIK)
         {
-            // Validation logic remains the same
             if (string.IsNullOrWhiteSpace(data.nik) ||
                 string.IsNullOrWhiteSpace(data.nama) ||
                 string.IsNullOrWhiteSpace(data.tanggalLahir) ||
@@ -366,6 +450,7 @@ namespace AplikasiPencatatanWarga
             catch (Exception ex)
             {
                 Console.WriteLine($"Refresh error: {ex.Message}");
+                ShowMessage($"Error: {ex.Message}", MessageType.Error);
             }
         }
 
