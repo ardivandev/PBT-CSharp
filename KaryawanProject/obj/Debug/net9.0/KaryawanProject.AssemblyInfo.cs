@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("KaryawanProject")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+07fd0ae01a34cf3c2daa4dff5a89c7eb99f74beb")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1dc4def8c4c15abae9a5532b9d5a9096f670fa7f")]
 [assembly: System.Reflection.AssemblyProductAttribute("KaryawanProject")]
 [assembly: System.Reflection.AssemblyTitleAttribute("KaryawanProject")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
