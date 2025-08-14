@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("AplikasiWarga.GUI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+07fd0ae01a34cf3c2daa4dff5a89c7eb99f74beb")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d32e447fd7e9729556f7ebe43f4ad9fabb2b8cbf")]
 [assembly: System.Reflection.AssemblyProductAttribute("AplikasiWarga.GUI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AplikasiWarga.GUI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
